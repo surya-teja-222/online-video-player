@@ -1,0 +1,299 @@
+.container {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  background: #000;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filePicker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #141414 0%, #000 100%);
+}
+
+.filePickerContent {
+  text-align: center;
+  padding: 2rem;
+}
+
+.filePickerContent h1 {
+  color: #fff;
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+.selectFileBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  background: #e50914;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1.125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.selectFileBtn:hover {
+  background: #f40612;
+  transform: scale(1.05);
+}
+
+.selectFileBtn:active {
+  transform: scale(0.98);
+}
+
+.supportedFormats {
+  color: #999;
+  margin-top: 1.5rem;
+  font-size: 0.875rem;
+}
+
+.video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0 1rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.controls.show {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.gradient {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 30%, transparent 100%);
+  pointer-events: none;
+}
+
+.progressContainer {
+  position: relative;
+  padding: 0 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.progressBar {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: height 0.1s ease;
+}
+
+.progressBar:hover {
+  height: 6px;
+}
+
+.progressBar:hover .progressThumb {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.progressBuffered {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+.progressPlayed {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: #e50914;
+  border-radius: 2px;
+}
+
+.progressThumb {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  background: #e50914;
+  border-radius: 50%;
+  transform: translateX(-50%) translateY(-50%) scale(0);
+  opacity: 0;
+  transition: all 0.1s ease;
+  pointer-events: none;
+}
+
+.controlsBottom {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem 1rem;
+  z-index: 1;
+}
+
+.controlsLeft,
+.controlsRight {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.controlBtn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.controlBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.1);
+}
+
+.controlBtn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.seekLabel {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  font-size: 10px;
+  font-weight: bold;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 1px 3px;
+  border-radius: 2px;
+}
+
+.volumeSlider {
+  display: flex;
+  align-items: center;
+  width: 0;
+  overflow: hidden;
+  transition: width 0.3s ease;
+}
+
+.controlBtn:hover + .volumeSlider,
+.volumeSlider:hover {
+  width: 100px;
+}
+
+.volumeSlider input {
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(to right, #e50914 0%, #e50914 var(--volume, 100%), rgba(255, 255, 255, 0.3) var(--volume, 100%));
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.volumeSlider input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: white;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.volumeSlider input::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: white;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.timeDisplay {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  user-select: none;
+  margin-left: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .filePickerContent h1 {
+    font-size: 1.75rem;
+  }
+  
+  .selectFileBtn {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
+  
+  .controlBtn {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .controlBtn svg {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .controlsLeft,
+  .controlsRight {
+    gap: 0.5rem;
+  }
+  
+  .timeDisplay {
+    font-size: 0.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .progressBar:hover {
+    height: 8px;
+  }
+  
+  .progressThumb {
+    width: 16px;
+    height: 16px;
+  }
+}
