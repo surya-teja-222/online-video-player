@@ -21,14 +21,19 @@
 .filePickerContent {
   text-align: center;
   padding: 2rem;
+  max-width: 600px;
 }
 
 .filePickerContent h1 {
   color: #fff;
   font-size: 2.5rem;
-  margin-bottom: 2rem;
+  margin-bottom: 3rem;
   font-weight: 600;
   letter-spacing: -0.5px;
+}
+
+.optionSection {
+  margin-bottom: 2rem;
 }
 
 .selectFileBtn {
@@ -57,8 +62,143 @@
 
 .supportedFormats {
   color: #999;
-  margin-top: 1.5rem;
+  margin-top: 1rem;
   font-size: 0.875rem;
+}
+
+.divider {
+  position: relative;
+  margin: 2.5rem 0;
+  color: #666;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 45%;
+  height: 1px;
+  background: #333;
+}
+
+.divider::before {
+  left: 0;
+}
+
+.divider::after {
+  right: 0;
+}
+
+.urlSection {
+  margin-top: 2rem;
+}
+
+.urlForm {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.urlInput {
+  flex: 1;
+  padding: 0.875rem 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: white;
+  font-size: 1rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.urlInput::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.urlInput:focus {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: #e50914;
+}
+
+.loadUrlBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  background: #46d369;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.loadUrlBtn:hover {
+  background: #3fc25f;
+  transform: scale(1.02);
+}
+
+.loadUrlBtn:active {
+  transform: scale(0.98);
+}
+
+.errorMessage {
+  color: #ff6b6b;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  padding: 0.5rem;
+  background: rgba(255, 107, 107, 0.1);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 107, 107, 0.3);
+}
+
+.urlHint {
+  color: #666;
+  font-size: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.loadingOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  color: white;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #e50914;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loadingOverlay p {
+  font-size: 1.125rem;
+  color: #ccc;
 }
 
 .video {
@@ -148,6 +288,55 @@
   opacity: 0;
   transition: all 0.1s ease;
   pointer-events: none;
+}
+
+.seekPreview {
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 15px;
+  background: rgba(0, 0, 0, 0.95);
+  border-radius: 4px;
+  padding: 4px;
+  pointer-events: none;
+  z-index: 100;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.thumbnailContainer {
+  width: 160px;
+  height: 90px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: #000;
+  margin-bottom: 4px;
+}
+
+.thumbnailContainer img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.previewTime {
+  text-align: center;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 2px;
 }
 
 .controlsBottom {
@@ -258,13 +447,31 @@
 }
 
 @media (max-width: 768px) {
+  .filePickerContent {
+    padding: 1.5rem;
+  }
+  
   .filePickerContent h1 {
     font-size: 1.75rem;
+    margin-bottom: 2rem;
   }
   
   .selectFileBtn {
     padding: 0.75rem 1.5rem;
     font-size: 1rem;
+  }
+  
+  .urlForm {
+    flex-direction: column;
+  }
+  
+  .urlInput {
+    width: 100%;
+  }
+  
+  .loadUrlBtn {
+    width: 100%;
+    justify-content: center;
   }
   
   .controlBtn {

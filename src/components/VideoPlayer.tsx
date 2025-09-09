@@ -13,12 +13,23 @@ export default function VideoPlayer() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showControls, setShowControls] = useState(true)
   const [buffered, setBuffered] = useState(0)
+  const [urlInput, setUrlInput] = useState('')
+  const [loadingError, setLoadingError] = useState<string | null>(null)
+  const [isLoadingUrl, setIsLoadingUrl] = useState(false)
+  const [previewTime, setPreviewTime] = useState(0)
+  const [previewPosition, setPreviewPosition] = useState(0)
+  const [showPreview, setShowPreview] = useState(false)
+  const [previewThumbnail, setPreviewThumbnail] = useState<string | null>(null)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const progressBarRef = useRef<HTMLDivElement>(null)
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const previewVideoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const thumbnailCache = useRef<Map<number, string>>(new Map())
+  const lastThumbnailTime = useRef<number>(-1)
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -77,7 +88,51 @@ export default function VideoPlayer() {
       const url = URL.createObjectURL(file)
       setVideoSrc(url)
       setShowControls(true)
+      setLoadingError(null)
     }
+  }
+
+  const handleUrlSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!urlInput.trim()) return
+    
+    const isValidUrl = (url: string) => {
+      try {
+        new URL(url)
+        return true
+      } catch {
+        return false
+      }
+    }
+
+    if (!isValidUrl(urlInput)) {
+      setLoadingError('Please enter a valid URL')
+      return
+    }
+
+    setIsLoadingUrl(true)
+    setLoadingError(null)
+    setVideoSrc(urlInput)
+    setShowControls(true)
+  }
+
+  const handleVideoError = () => {
+    if (videoSrc?.startsWith('http')) {
+      setLoadingError('Failed to load video. Please check the URL and try again.')
+      setVideoSrc(null)
+      setIsLoadingUrl(false)
+    }
+  }
+
+  const handleVideoLoadStart = () => {
+    if (videoSrc?.startsWith('http')) {
+      setIsLoadingUrl(true)
+    }
+  }
+
+  const handleVideoCanPlay = () => {
+    setIsLoadingUrl(false)
+    setLoadingError(null)
   }
 
   const togglePlayPause = () => {
@@ -107,6 +162,81 @@ export default function VideoPlayer() {
     const rect = progressBarRef.current.getBoundingClientRect()
     const percent = (e.clientX - rect.left) / rect.width
     videoRef.current.currentTime = percent * duration
+  }
+
+  const generateThumbnail = async (time: number): Promise<string | null> => {
+    if (!previewVideoRef.current || !canvasRef.current) return null
+    
+    const roundedTime = Math.floor(time * 2) / 2
+    
+    if (thumbnailCache.current.has(roundedTime)) {
+      return thumbnailCache.current.get(roundedTime)!
+    }
+    
+    if (Math.abs(lastThumbnailTime.current - time) < 0.5) {
+      return previewThumbnail
+    }
+    
+    return new Promise((resolve) => {
+      const video = previewVideoRef.current!
+      const canvas = canvasRef.current!
+      
+      const handleSeeked = () => {
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          resolve(null)
+          return
+        }
+        
+        const aspectRatio = video.videoWidth / video.videoHeight
+        const thumbWidth = 160
+        const thumbHeight = thumbWidth / aspectRatio
+        
+        canvas.width = thumbWidth
+        canvas.height = thumbHeight
+        
+        ctx.drawImage(video, 0, 0, thumbWidth, thumbHeight)
+        
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7)
+        thumbnailCache.current.set(roundedTime, dataUrl)
+        
+        if (thumbnailCache.current.size > 50) {
+          const firstKey = thumbnailCache.current.keys().next().value
+          thumbnailCache.current.delete(firstKey!)
+        }
+        
+        lastThumbnailTime.current = time
+        video.removeEventListener('seeked', handleSeeked)
+        resolve(dataUrl)
+      }
+      
+      video.addEventListener('seeked', handleSeeked)
+      video.currentTime = roundedTime
+    })
+  }
+
+  const handleProgressHover = async (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!progressBarRef.current || duration === 0) return
+    
+    const rect = progressBarRef.current.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const percent = Math.max(0, Math.min(1, x / rect.width))
+    const time = percent * duration
+    
+    setPreviewTime(time)
+    setPreviewPosition(x)
+    setShowPreview(true)
+    
+    if (previewVideoRef.current && videoSrc) {
+      const thumbnail = await generateThumbnail(time)
+      if (thumbnail) {
+        setPreviewThumbnail(thumbnail)
+      }
+    }
+  }
+
+  const handleProgressLeave = () => {
+    setShowPreview(false)
   }
 
   const toggleMute = () => {
@@ -199,24 +329,62 @@ export default function VideoPlayer() {
         <div className={styles.filePicker}>
           <div className={styles.filePickerContent}>
             <h1>Select a Video to Play</h1>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className={styles.selectFileBtn}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
-              Choose Video File
-            </button>
-            <p className={styles.supportedFormats}>
-              Supported formats: MP4, MKV, MOV, WebM, AVI
-            </p>
+            
+            <div className={styles.optionSection}>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className={styles.selectFileBtn}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Choose Video File
+              </button>
+              <p className={styles.supportedFormats}>
+                Supported formats: MP4, MKV, MOV, WebM, AVI
+              </p>
+            </div>
+
+            <div className={styles.divider}>
+              <span>OR</span>
+            </div>
+
+            <div className={styles.urlSection}>
+              <form onSubmit={handleUrlSubmit} className={styles.urlForm}>
+                <input
+                  type="text"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  placeholder="Enter video URL (e.g., https://example.com/video.mp4)"
+                  className={styles.urlInput}
+                />
+                <button type="submit" className={styles.loadUrlBtn}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polygon points="10 8 16 12 10 16 10 8"></polygon>
+                  </svg>
+                  Load URL
+                </button>
+              </form>
+              {loadingError && (
+                <p className={styles.errorMessage}>{loadingError}</p>
+              )}
+              <p className={styles.urlHint}>
+                Stream videos from direct URLs (CORS-enabled servers only)
+              </p>
+            </div>
           </div>
         </div>
       ) : (
         <>
+          {isLoadingUrl && (
+            <div className={styles.loadingOverlay}>
+              <div className={styles.spinner}></div>
+              <p>Loading video...</p>
+            </div>
+          )}
           <video
             ref={videoRef}
             src={videoSrc}
@@ -224,12 +392,19 @@ export default function VideoPlayer() {
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
             onClick={togglePlayPause}
+            onError={handleVideoError}
+            onLoadStart={handleVideoLoadStart}
+            onCanPlay={handleVideoCanPlay}
+            crossOrigin="anonymous"
           />
           
           <div className={`${styles.controls} ${showControls ? styles.show : ''}`}>
             <div className={styles.gradient}></div>
             
-            <div className={styles.progressContainer}>
+            <div className={styles.progressContainer}
+              onMouseMove={handleProgressHover}
+              onMouseLeave={handleProgressLeave}
+            >
               <div 
                 ref={progressBarRef}
                 className={styles.progressBar}
@@ -239,6 +414,23 @@ export default function VideoPlayer() {
                 <div className={styles.progressPlayed} style={{ width: `${progressPercentage}%` }} />
                 <div className={styles.progressThumb} style={{ left: `${progressPercentage}%` }} />
               </div>
+              
+              {showPreview && (
+                <div 
+                  className={styles.seekPreview}
+                  style={{ 
+                    left: `${previewPosition}px`,
+                    transform: `translateX(-50%) translateX(${Math.max(-previewPosition + 80, Math.min(0, progressBarRef.current ? progressBarRef.current.offsetWidth - previewPosition - 80 : 0))}px)`
+                  }}
+                >
+                  {previewThumbnail && (
+                    <div className={styles.thumbnailContainer}>
+                      <img src={previewThumbnail} alt="Seek preview" />
+                    </div>
+                  )}
+                  <div className={styles.previewTime}>{formatTime(previewTime)}</div>
+                </div>
+              )}
             </div>
             
             <div className={styles.controlsBottom}>
@@ -323,6 +515,22 @@ export default function VideoPlayer() {
         onChange={handleFileSelect}
         style={{ display: 'none' }}
       />
+      
+      {videoSrc && (
+        <>
+          <video
+            ref={previewVideoRef}
+            src={videoSrc}
+            style={{ display: 'none' }}
+            crossOrigin="anonymous"
+            preload="metadata"
+          />
+          <canvas
+            ref={canvasRef}
+            style={{ display: 'none' }}
+          />
+        </>
+      )}
     </div>
   )
 }
