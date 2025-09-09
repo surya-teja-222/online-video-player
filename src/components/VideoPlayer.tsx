@@ -20,6 +20,8 @@ export default function VideoPlayer() {
   const [previewPosition, setPreviewPosition] = useState(0)
   const [showPreview, setShowPreview] = useState(false)
   const [previewThumbnail, setPreviewThumbnail] = useState<string | null>(null)
+  const [isSeeking, setIsSeeking] = useState(false)
+  const [isBuffering, setIsBuffering] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -133,6 +135,25 @@ export default function VideoPlayer() {
   const handleVideoCanPlay = () => {
     setIsLoadingUrl(false)
     setLoadingError(null)
+    setIsBuffering(false)
+    setIsSeeking(false)
+  }
+
+  const handleVideoWaiting = () => {
+    setIsBuffering(true)
+  }
+
+  const handleVideoPlaying = () => {
+    setIsBuffering(false)
+    setIsSeeking(false)
+  }
+
+  const handleVideoSeeking = () => {
+    setIsSeeking(true)
+  }
+
+  const handleVideoSeeked = () => {
+    setIsSeeking(false)
   }
 
   const togglePlayPause = () => {
@@ -146,22 +167,71 @@ export default function VideoPlayer() {
     setIsPlaying(!isPlaying)
   }
 
-  const seekForward = () => {
+  const seekForward = async () => {
     if (!videoRef.current) return
-    videoRef.current.currentTime = Math.min(videoRef.current.currentTime + 5, duration)
+    const targetTime = Math.min(videoRef.current.currentTime + 5, duration)
+    setIsSeeking(true)
+    
+    try {
+      if (videoRef.current.fastSeek) {
+        videoRef.current.fastSeek(targetTime)
+      } else {
+        videoRef.current.currentTime = targetTime
+      }
+      
+      if (!isPlaying) {
+        await videoRef.current.play()
+        videoRef.current.pause()
+      }
+    } catch (error) {
+      console.error('Seek error:', error)
+    }
   }
 
-  const seekBackward = () => {
+  const seekBackward = async () => {
     if (!videoRef.current) return
-    videoRef.current.currentTime = Math.max(videoRef.current.currentTime - 5, 0)
+    const targetTime = Math.max(videoRef.current.currentTime - 5, 0)
+    setIsSeeking(true)
+    
+    try {
+      if (videoRef.current.fastSeek) {
+        videoRef.current.fastSeek(targetTime)
+      } else {
+        videoRef.current.currentTime = targetTime
+      }
+      
+      if (!isPlaying) {
+        await videoRef.current.play()
+        videoRef.current.pause()
+      }
+    } catch (error) {
+      console.error('Seek error:', error)
+    }
   }
 
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleProgressClick = async (e: React.MouseEvent<HTMLDivElement>) => {
     if (!videoRef.current || !progressBarRef.current) return
 
     const rect = progressBarRef.current.getBoundingClientRect()
     const percent = (e.clientX - rect.left) / rect.width
-    videoRef.current.currentTime = percent * duration
+    const targetTime = percent * duration
+    
+    setIsSeeking(true)
+    
+    try {
+      if (videoRef.current.fastSeek) {
+        videoRef.current.fastSeek(targetTime)
+      } else {
+        videoRef.current.currentTime = targetTime
+      }
+      
+      if (!isPlaying) {
+        await videoRef.current.play()
+        videoRef.current.pause()
+      }
+    } catch (error) {
+      console.error('Seek error:', error)
+    }
   }
 
   const generateThumbnail = async (time: number): Promise<string | null> => {
@@ -379,10 +449,10 @@ export default function VideoPlayer() {
         </div>
       ) : (
         <>
-          {isLoadingUrl && (
+          {(isLoadingUrl || isBuffering || isSeeking) && (
             <div className={styles.loadingOverlay}>
               <div className={styles.spinner}></div>
-              <p>Loading video...</p>
+              <p>{isSeeking ? 'Seeking...' : isBuffering ? 'Buffering...' : 'Loading video...'}</p>
             </div>
           )}
           <video
@@ -395,7 +465,14 @@ export default function VideoPlayer() {
             onError={handleVideoError}
             onLoadStart={handleVideoLoadStart}
             onCanPlay={handleVideoCanPlay}
+            onWaiting={handleVideoWaiting}
+            onPlaying={handleVideoPlaying}
+            onSeeking={handleVideoSeeking}
+            onSeeked={handleVideoSeeked}
+            onStalled={() => setIsBuffering(true)}
+            onProgress={() => setIsBuffering(false)}
             crossOrigin="anonymous"
+            preload="auto"
           />
           
           <div className={`${styles.controls} ${showControls ? styles.show : ''}`}>
