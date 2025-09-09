@@ -494,6 +494,79 @@
   }
 }
 
+.resumePrompt {
+  position: absolute;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 1.5rem 2rem;
+  animation: slideDown 0.3s ease;
+}
+
+.resumeContent {
+  text-align: center;
+}
+
+.resumeContent p {
+  color: #fff;
+  font-size: 1.125rem;
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+.resumeButtons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.resumeBtn,
+.startOverBtn {
+  padding: 0.625rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.resumeBtn {
+  background: #e50914;
+  color: white;
+}
+
+.resumeBtn:hover {
+  background: #f6121d;
+  transform: scale(1.05);
+}
+
+.startOverBtn {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.startOverBtn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
 @media (min-width: 1024px) {
   .progressBar:hover {
     height: 8px;

@@ -22,6 +22,8 @@ export default function VideoPlayer() {
   const [previewThumbnail, setPreviewThumbnail] = useState<string | null>(null)
   const [isSeeking, setIsSeeking] = useState(false)
   const [isBuffering, setIsBuffering] = useState(false)
+  const [savedPosition, setSavedPosition] = useState<number | null>(null)
+  const [showResumePrompt, setShowResumePrompt] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -32,6 +34,8 @@ export default function VideoPlayer() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const thumbnailCache = useRef<Map<number, string>>(new Map())
   const lastThumbnailTime = useRef<number>(-1)
+  const saveIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const videoIdentifierRef = useRef<string | null>(null)
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -84,10 +88,57 @@ export default function VideoPlayer() {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [])
 
+  const getVideoIdentifier = (source: string): string => {
+    if (source.startsWith('blob:')) {
+      return `file-${source.substring(source.lastIndexOf('/') + 1)}`
+    }
+    return source
+  }
+
+  const loadSavedPosition = (identifier: string): number | null => {
+    try {
+      const saved = localStorage.getItem(`video-position-${identifier}`)
+      if (saved) {
+        const data = JSON.parse(saved)
+        if (data.timestamp && Date.now() - data.timestamp < 30 * 24 * 60 * 60 * 1000) {
+          return data.position
+        }
+      }
+    } catch (error) {
+      console.error('Error loading saved position:', error)
+    }
+    return null
+  }
+
+  const savePosition = (identifier: string, position: number, videoDuration: number) => {
+    try {
+      if (position > 5 && position < videoDuration - 10) {
+        localStorage.setItem(`video-position-${identifier}`, JSON.stringify({
+          position,
+          duration: videoDuration,
+          timestamp: Date.now()
+        }))
+      } else if (position >= videoDuration - 10) {
+        localStorage.removeItem(`video-position-${identifier}`)
+      }
+    } catch (error) {
+      console.error('Error saving position:', error)
+    }
+  }
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       const url = URL.createObjectURL(file)
+      const identifier = `file-${file.name}-${file.size}`
+      videoIdentifierRef.current = identifier
+      
+      const saved = loadSavedPosition(identifier)
+      if (saved) {
+        setSavedPosition(saved)
+        setShowResumePrompt(true)
+      }
+      
       setVideoSrc(url)
       setShowControls(true)
       setLoadingError(null)
@@ -110,6 +161,15 @@ export default function VideoPlayer() {
     if (!isValidUrl(urlInput)) {
       setLoadingError('Please enter a valid URL')
       return
+    }
+
+    const identifier = getVideoIdentifier(urlInput)
+    videoIdentifierRef.current = identifier
+    
+    const saved = loadSavedPosition(identifier)
+    if (saved) {
+      setSavedPosition(saved)
+      setShowResumePrompt(true)
     }
 
     setIsLoadingUrl(true)
@@ -367,9 +427,57 @@ export default function VideoPlayer() {
     }
   }
 
+  useEffect(() => {
+    if (!videoIdentifierRef.current || !duration || duration === 0) return
+    
+    const interval = setInterval(() => {
+      if (videoIdentifierRef.current && currentTime > 0) {
+        savePosition(videoIdentifierRef.current, currentTime, duration)
+      }
+    }, 5000)
+    
+    saveIntervalRef.current = interval
+    
+    return () => {
+      if (saveIntervalRef.current) {
+        clearInterval(saveIntervalRef.current)
+      }
+      if (videoIdentifierRef.current && currentTime > 0) {
+        savePosition(videoIdentifierRef.current, currentTime, duration)
+      }
+    }
+  }, [currentTime, duration])
+
+  useEffect(() => {
+    return () => {
+      if (videoIdentifierRef.current && currentTime > 0 && duration > 0) {
+        savePosition(videoIdentifierRef.current, currentTime, duration)
+      }
+    }
+  }, [])
+
   const handleLoadedMetadata = () => {
     if (!videoRef.current) return
     setDuration(videoRef.current.duration)
+    
+    if (savedPosition && showResumePrompt && videoRef.current.duration > 0) {
+      setTimeout(() => {
+        setShowResumePrompt(false)
+      }, 5000)
+    }
+  }
+
+  const handleResume = () => {
+    if (videoRef.current && savedPosition) {
+      videoRef.current.currentTime = savedPosition
+      setSavedPosition(null)
+      setShowResumePrompt(false)
+    }
+  }
+
+  const handleStartOver = () => {
+    setSavedPosition(null)
+    setShowResumePrompt(false)
   }
 
   const handleMouseMove = () => {
@@ -449,6 +557,21 @@ export default function VideoPlayer() {
         </div>
       ) : (
         <>
+          {showResumePrompt && savedPosition && (
+            <div className={styles.resumePrompt}>
+              <div className={styles.resumeContent}>
+                <p>Resume from {formatTime(savedPosition)}?</p>
+                <div className={styles.resumeButtons}>
+                  <button onClick={handleResume} className={styles.resumeBtn}>
+                    Resume
+                  </button>
+                  <button onClick={handleStartOver} className={styles.startOverBtn}>
+                    Start Over
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {(isLoadingUrl || isBuffering || isSeeking) && (
             <div className={styles.loadingOverlay}>
               <div className={styles.spinner}></div>
