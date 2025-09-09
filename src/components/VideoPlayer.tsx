@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import styles from './VideoPlayer.module.css'
+import CastButton from './CastButton'
+import { useCast } from '@/hooks/useCast'
 
 export default function VideoPlayer() {
   const [videoSrc, setVideoSrc] = useState<string | null>(null)
@@ -36,6 +38,20 @@ export default function VideoPlayer() {
   const lastThumbnailTime = useRef<number>(-1)
   const saveIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const videoIdentifierRef = useRef<string | null>(null)
+  const currentVideoTitle = useRef<string>('Video')
+
+  const {
+    isCastAvailable,
+    isCasting,
+    startCast,
+    stopCast,
+    loadMedia,
+    playPause: castPlayPause,
+    seek: castSeek,
+    setVolume: castSetVolume,
+    setMuted: castSetMuted,
+    getCastState,
+  } = useCast()
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -132,6 +148,7 @@ export default function VideoPlayer() {
       const url = URL.createObjectURL(file)
       const identifier = `file-${file.name}-${file.size}`
       videoIdentifierRef.current = identifier
+      currentVideoTitle.current = file.name.replace(/\.[^/.]+$/, '')
       
       const saved = loadSavedPosition(identifier)
       if (saved) {
@@ -165,6 +182,7 @@ export default function VideoPlayer() {
 
     const identifier = getVideoIdentifier(urlInput)
     videoIdentifierRef.current = identifier
+    currentVideoTitle.current = urlInput.split('/').pop()?.replace(/\.[^/.]+$/, '') || 'Video'
     
     const saved = loadSavedPosition(identifier)
     if (saved) {
@@ -217,80 +235,104 @@ export default function VideoPlayer() {
   }
 
   const togglePlayPause = () => {
-    if (!videoRef.current) return
-
-    if (isPlaying) {
-      videoRef.current.pause()
-    } else {
-      videoRef.current.play()
+    if (isCasting) {
+      castPlayPause()
+      const state = getCastState()
+      if (state) {
+        setIsPlaying(!state.isPaused)
+      }
+    } else if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause()
+      } else {
+        videoRef.current.play()
+      }
+      setIsPlaying(!isPlaying)
     }
-    setIsPlaying(!isPlaying)
   }
 
   const seekForward = async () => {
-    if (!videoRef.current) return
-    const targetTime = Math.min(videoRef.current.currentTime + 5, duration)
-    setIsSeeking(true)
-    
-    try {
-      if (videoRef.current.fastSeek) {
-        videoRef.current.fastSeek(targetTime)
-      } else {
-        videoRef.current.currentTime = targetTime
+    if (isCasting) {
+      const state = getCastState()
+      if (state) {
+        const targetTime = Math.min(state.currentTime + 5, state.duration)
+        castSeek(targetTime)
       }
+    } else if (videoRef.current) {
+      const targetTime = Math.min(videoRef.current.currentTime + 5, duration)
+      setIsSeeking(true)
       
-      if (!isPlaying) {
-        await videoRef.current.play()
-        videoRef.current.pause()
+      try {
+        if (videoRef.current.fastSeek) {
+          videoRef.current.fastSeek(targetTime)
+        } else {
+          videoRef.current.currentTime = targetTime
+        }
+        
+        if (!isPlaying) {
+          await videoRef.current.play()
+          videoRef.current.pause()
+        }
+      } catch (error) {
+        console.error('Seek error:', error)
       }
-    } catch (error) {
-      console.error('Seek error:', error)
     }
   }
 
   const seekBackward = async () => {
-    if (!videoRef.current) return
-    const targetTime = Math.max(videoRef.current.currentTime - 5, 0)
-    setIsSeeking(true)
-    
-    try {
-      if (videoRef.current.fastSeek) {
-        videoRef.current.fastSeek(targetTime)
-      } else {
-        videoRef.current.currentTime = targetTime
+    if (isCasting) {
+      const state = getCastState()
+      if (state) {
+        const targetTime = Math.max(state.currentTime - 5, 0)
+        castSeek(targetTime)
       }
+    } else if (videoRef.current) {
+      const targetTime = Math.max(videoRef.current.currentTime - 5, 0)
+      setIsSeeking(true)
       
-      if (!isPlaying) {
-        await videoRef.current.play()
-        videoRef.current.pause()
+      try {
+        if (videoRef.current.fastSeek) {
+          videoRef.current.fastSeek(targetTime)
+        } else {
+          videoRef.current.currentTime = targetTime
+        }
+        
+        if (!isPlaying) {
+          await videoRef.current.play()
+          videoRef.current.pause()
+        }
+      } catch (error) {
+        console.error('Seek error:', error)
       }
-    } catch (error) {
-      console.error('Seek error:', error)
     }
   }
 
   const handleProgressClick = async (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!videoRef.current || !progressBarRef.current) return
+    if (!progressBarRef.current) return
 
     const rect = progressBarRef.current.getBoundingClientRect()
     const percent = (e.clientX - rect.left) / rect.width
     const targetTime = percent * duration
     
-    setIsSeeking(true)
-    
-    try {
-      if (videoRef.current.fastSeek) {
-        videoRef.current.fastSeek(targetTime)
-      } else {
-        videoRef.current.currentTime = targetTime
-      }
+    if (isCasting) {
+      castSeek(targetTime)
+    } else if (videoRef.current) {
+      setIsSeeking(true)
       
-      if (!isPlaying) {
-        await videoRef.current.play()
-        videoRef.current.pause()
+      try {
+        if (videoRef.current.fastSeek) {
+          videoRef.current.fastSeek(targetTime)
+        } else {
+          videoRef.current.currentTime = targetTime
+        }
+        
+        if (!isPlaying) {
+          await videoRef.current.play()
+          videoRef.current.pause()
+        }
+      } catch (error) {
+        console.error('Seek error:', error)
       }
-    } catch (error) {
-      console.error('Seek error:', error)
     }
   }
 
@@ -370,14 +412,27 @@ export default function VideoPlayer() {
   }
 
   const toggleMute = () => {
-    if (!videoRef.current) return
-    videoRef.current.muted = !isMuted
-    setIsMuted(!isMuted)
+    if (isCasting) {
+      castSetMuted(!isMuted)
+      setIsMuted(!isMuted)
+    } else if (videoRef.current) {
+      videoRef.current.muted = !isMuted
+      setIsMuted(!isMuted)
+    }
   }
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value) / 100
-    if (videoRef.current) {
+    
+    if (isCasting) {
+      castSetVolume(newVolume)
+      setVolume(newVolume)
+      if (newVolume === 0) {
+        setIsMuted(true)
+      } else if (isMuted) {
+        setIsMuted(false)
+      }
+    } else if (videoRef.current) {
       videoRef.current.volume = newVolume
       setVolume(newVolume)
       if (newVolume === 0) {
@@ -466,6 +521,50 @@ export default function VideoPlayer() {
       }, 5000)
     }
   }
+
+  const handleCastClick = async () => {
+    try {
+      if (isCasting) {
+        stopCast()
+      } else {
+        const success = await startCast()
+        if (success && videoSrc) {
+          // Small delay to ensure session is ready
+          setTimeout(async () => {
+            const castUrl = videoSrc.startsWith('blob:') ? 
+              videoSrc : // For blob URLs, we'd need to upload to a server
+              videoSrc
+            
+            if (!videoSrc.startsWith('blob:')) {
+              await loadMedia(castUrl, currentVideoTitle.current, currentTime)
+            } else {
+              alert('Local files cannot be cast directly. Please use a URL or upload the video to a server.')
+              stopCast()
+            }
+          }, 500)
+        }
+      }
+    } catch (error) {
+      console.error('Error handling cast click:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (isCasting) {
+      const interval = setInterval(() => {
+        const state = getCastState()
+        if (state) {
+          setCurrentTime(state.currentTime)
+          setDuration(state.duration)
+          setIsPlaying(!state.isPaused)
+          setVolume(state.volume)
+          setIsMuted(state.isMuted)
+        }
+      }, 1000)
+      
+      return () => clearInterval(interval)
+    }
+  }, [isCasting, getCastState])
 
   const handleResume = () => {
     if (videoRef.current && savedPosition) {
@@ -691,6 +790,11 @@ export default function VideoPlayer() {
               </div>
               
               <div className={styles.controlsRight}>
+                <CastButton
+                  isCastAvailable={isCastAvailable}
+                  isCasting={isCasting}
+                  onCastClick={handleCastClick}
+                />
                 <button onClick={toggleFullscreen} className={styles.controlBtn}>
                   {isFullscreen ? (
                     <svg viewBox="0 0 24 24" fill="currentColor">
