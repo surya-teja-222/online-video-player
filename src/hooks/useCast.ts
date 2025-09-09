@@ -1,28 +1,20 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-
-declare global {
-  interface Window {
-    __onGCastApiAvailable: (isAvailable: boolean) => void
-    chrome: any
-  }
-}
-
-interface CastSession {
-  sessionId: string
-  media: any
-  loadMedia: (request: any) => Promise<void>
-  endSession: (stopCasting: boolean) => void
-}
+import type { 
+  CastContext, 
+  CastSession, 
+  RemotePlayer, 
+  RemotePlayerController 
+} from '@/types/cast'
 
 export function useCast() {
   const [isCastAvailable, setIsCastAvailable] = useState(false)
   const [isCasting, setIsCasting] = useState(false)
   const [castSession, setCastSession] = useState<CastSession | null>(null)
-  const castContextRef = useRef<any>(null)
-  const remotePlayerRef = useRef<any>(null)
-  const remotePlayerControllerRef = useRef<any>(null)
+  const castContextRef = useRef<CastContext | null>(null)
+  const remotePlayerRef = useRef<RemotePlayer | null>(null)
+  const remotePlayerControllerRef = useRef<RemotePlayerController | null>(null)
 
   useEffect(() => {
     // Check if Cast SDK is already loaded
